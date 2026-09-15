@@ -1,0 +1,11 @@
+{
+  "title": "Pokémon Explorer",
+  "description": "Browse, search, compare and collect Pokémon with a mobile-first Pokédex experience.",
+  "language": "en",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": true
+  }
+}

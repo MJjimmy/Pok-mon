@@ -33,11 +33,15 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
       strictPort: true,
+      // The dev server is reached through a proxied preview host, so the
+      // Host header never matches localhost. Accept any host.
+      allowedHosts: true,
       watch: { ignored: ['**/.figma/**'] },
     },
     preview: {
       host: '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
+      allowedHosts: true,
     },
   }
 })
