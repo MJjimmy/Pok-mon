@@ -1,4 +1,26 @@
-node_modules/
-dist/
-*.local
+# Gradle
+.gradle/
+build/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Build outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+output.json
+
+# Keystores — never commit signing material
+*.jks
+*.keystore
+
+# OS
 .DS_Store
+Thumbs.db
