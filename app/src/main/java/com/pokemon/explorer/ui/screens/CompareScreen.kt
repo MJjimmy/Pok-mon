@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -473,8 +474,9 @@ private fun StatComparison(
     }
 }
 
+/** Declared as a [RowScope] extension so `Modifier.weight` is available. */
 @Composable
-private fun TotalCell(value: Int, color: Color, wins: Boolean) {
+private fun RowScope.TotalCell(value: Int, color: Color, wins: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
         Text(
             text = value.toString(),
