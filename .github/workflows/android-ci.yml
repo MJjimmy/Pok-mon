@@ -64,12 +64,12 @@ jobs:
             const lines = log.split('\n');
 
             // ---- compiler diagnostics
-            const errors = lines.filter(l => /^e: /.test(l));
-            const warnings = lines.filter(l => /^w: /.test(l) && !/deprecat.*Node\.js/.test(l));
+            const compileErrors = lines.filter(l => /^e: /.test(l));
+            const compileWarnings = lines.filter(l => /^w: /.test(l));
 
             // ---- unit test totals
             const dir = 'app/build/test-results/testDebugUnitTest';
-            let tests = 0, failures = 0, errors = 0, skipped = 0, suites = 0;
+            let tests = 0, testFailures = 0, testErrors = 0, testSkipped = 0, suites = 0;
             try {
               for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.xml'))) {
                 const xml = read(`${dir}/${f}`);
@@ -77,8 +77,8 @@ jobs:
                   const m = xml.match(new RegExp(`${name}="(\\d+)"`));
                   return m ? parseInt(m[1], 10) : 0;
                 };
-                tests += attr('tests'); failures += attr('failures');
-                errors += attr('errors'); skipped += attr('skipped');
+                tests += attr('tests'); testFailures += attr('failures');
+                testErrors += attr('errors'); testSkipped += attr('skipped');
                 suites += 1;
               }
             } catch (e) { /* no test results */ }
@@ -100,19 +100,19 @@ jobs:
             parts.push(`| Assemble | ${{ steps.assemble.outcome }} |`);
             parts.push(`| Unit tests | ${{ steps.test.outcome }} |`);
             parts.push(`| Test suites / cases | ${suites} / ${tests} |`);
-            parts.push(`| Failures / errors / skipped | ${failures} / ${errors} / ${skipped} |`);
+            parts.push(`| Failures / errors / skipped | ${testFailures} / ${testErrors} / ${testSkipped} |`);
             parts.push(`| Debug APK | ${apk} |`);
-            parts.push(`| Compiler errors / warnings | ${errors.length} / ${warnings.length} |`);
+            parts.push(`| Compiler errors / warnings | ${compileErrors.length} / ${compileWarnings.length} |`);
 
             const clip = (arr, n) => arr.slice(0, n).join('\n').slice(0, 20000);
 
-            if (errors.length) {
-              parts.push('', '<details><summary>Compiler errors</summary>', '', '```', clip(errors, 120), '```', '', '</details>');
+            if (compileErrors.length) {
+              parts.push('', '<details><summary>Compiler errors</summary>', '', '```', clip(compileErrors, 120), '```', '', '</details>');
             }
-            if (warnings.length) {
-              parts.push('', '<details><summary>Compiler warnings</summary>', '', '```', clip(warnings, 120), '```', '', '</details>');
+            if (compileWarnings.length) {
+              parts.push('', '<details><summary>Compiler warnings</summary>', '', '```', clip(compileWarnings, 120), '```', '', '</details>');
             }
-            if (!ok && !errors.length) {
+            if (!ok && !compileErrors.length) {
               const failLines = lines.filter(l => /FAILURE:|What went wrong|Execution failed|> Could not|Could not resolve|Unresolved reference|Type mismatch/.test(l));
               parts.push('', '<details><summary>Gradle failure output</summary>', '', '```', clip(failLines.length ? failLines : lines.slice(-120), 120), '```', '', '</details>');
             }
