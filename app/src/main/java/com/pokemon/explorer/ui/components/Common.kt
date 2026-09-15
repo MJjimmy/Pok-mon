@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -38,7 +39,19 @@ import com.pokemon.explorer.ui.theme.TextFaint
 import com.pokemon.explorer.ui.theme.TextHigh
 import com.pokemon.explorer.ui.theme.TextLow
 
-/** Circular translucent icon button used for back, settings and header actions. */
+/**
+ * Minimum touch target from the design brief (section 16). Interactive controls keep
+ * their designed visual size and pad their hit area out to this.
+ */
+val MinTouchTarget = 48.dp
+
+/**
+ * Circular translucent icon button used for back, settings and header actions.
+ *
+ * The visible circle is [diameter] wide, but the touch area is padded out to at least
+ * 48dp so it meets the design brief's minimum touch target. The padding is transparent,
+ * so the button still looks like the smaller circle in the original design.
+ */
 @Composable
 fun CircleIconButton(
     onClick: () -> Unit,
@@ -48,13 +61,19 @@ fun CircleIconButton(
 ) {
     Box(
         modifier = modifier
-            .size(diameter.dp)
-            .clip(Radii.badge)
-            .background(Surface08)
+            .sizeIn(minWidth = MinTouchTarget, minHeight = MinTouchTarget)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        content()
+        Box(
+            modifier = Modifier
+                .size(diameter.dp)
+                .clip(Radii.badge)
+                .background(Surface08),
+            contentAlignment = Alignment.Center,
+        ) {
+            content()
+        }
     }
 }
 
@@ -204,7 +223,10 @@ fun <T> SegmentedControl(
     }
 }
 
-/** On/off switch styled in the app's red rather than the Material default. */
+/**
+ * On/off switch styled in the app's red rather than the Material default. The track is
+ * 44x24dp, wrapped in a 48dp-tall touch area.
+ */
 @Composable
 fun ToggleSwitch(
     checked: Boolean,
@@ -213,19 +235,25 @@ fun ToggleSwitch(
 ) {
     Box(
         modifier = modifier
-            .size(width = 44.dp, height = 24.dp)
-            .clip(Radii.badge)
-            .background(if (checked) PokeRed else Surface10)
+            .sizeIn(minWidth = MinTouchTarget, minHeight = MinTouchTarget)
             .clickable { onCheckedChange(!checked) },
+        contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
-                .align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
-                .padding(horizontal = 2.dp)
-                .size(20.dp)
+                .size(width = 44.dp, height = 24.dp)
                 .clip(Radii.badge)
-                .background(Color.White),
-        )
+                .background(if (checked) PokeRed else Surface10),
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
+                    .padding(horizontal = 2.dp)
+                    .size(20.dp)
+                    .clip(Radii.badge)
+                    .background(Color.White),
+            )
+        }
     }
 }
 

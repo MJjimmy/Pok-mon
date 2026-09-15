@@ -130,14 +130,15 @@ fun PokemonCard(
             )
         }
 
-        // Favourite toggle, top-right.
+        // Favourite toggle, top-right. The hit area is a full 48dp square so it meets
+        // the brief's minimum touch target; only the heart is visible.
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(4.dp)
+                .size(MinTouchTarget)
                 .clip(Radii.badge)
-                .clickable(onClick = onToggleFavourite)
-                .padding(6.dp),
+                .clickable(onClick = onToggleFavourite),
+            contentAlignment = Alignment.Center,
         ) {
             HeartIcon(
                 iconSize = 16.dp,

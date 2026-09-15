@@ -6,6 +6,8 @@ Pokédex and Pokémon trading cards.
 
 Built with **Kotlin** and **Jetpack Compose** (Material 3).
 
+[![Android CI](https://github.com/MJjimmy/Pok-mon/actions/workflows/android-ci.yml/badge.svg)](https://github.com/MJjimmy/Pok-mon/actions/workflows/android-ci.yml)
+
 The full design brief lives in [`design/pokemon-explorer-design.md`](design/pokemon-explorer-design.md).
 
 ---
@@ -32,11 +34,15 @@ Requires **JDK 17** and the Android SDK (compileSdk 34).
 ./gradlew assembleDebug
 ```
 
+CI builds the debug APK and runs the unit tests on every push
+(`.github/workflows/android-ci.yml`), so the project is known to compile.
+
 > **Note:** `gradle/wrapper/gradle-wrapper.jar` is not committed in this checkout.
 > If `./gradlew` reports a missing wrapper, either open the project in Android
 > Studio (it will restore the wrapper) or generate it once with a local Gradle:
 > `gradle wrapper --gradle-version 8.9`. The intended Gradle version is pinned in
-> `gradle/wrapper/gradle-wrapper.properties`.
+> `gradle/wrapper/gradle-wrapper.properties`. CI installs Gradle 8.9 directly for
+> the same reason.
 
 ### Toolchain
 
@@ -65,8 +71,12 @@ app/src/main/java/com/pokemon/explorer/
     ├── AppRoot.kt           Screen host + bottom navigation
     ├── theme/Theme.kt       Palette, spacing, radii, typography, type gradients
     ├── components/          Pokéball, badges, stat bars, cards, buttons, icons, skeletons
+    │                        (ComponentPreviews.kt previews them all in the IDE)
     └── screens/             One file per screen, listed above
 ```
+
+Unit tests live in `app/src/test/java/com/pokemon/explorer/` and cover the
+hand-transcribed type chart. Run them with `./gradlew testDebugUnitTest`.
 
 ### Architecture notes
 
@@ -85,6 +95,18 @@ app/src/main/java/com/pokemon/explorer/
 - **Loading states** are modelled as a `LoadState` sealed interface
   (`Loading` / `Success` / `Failure`) with a `rememberLoadState` helper, so a
   screen can never render half-loaded.
+- **Touch targets** follow the brief's 48dp minimum. Controls such as
+  `CircleIconButton` and `ToggleSwitch` keep their designed visual size and pad
+  their hit area out to `MinTouchTarget` in `ui/components/Common.kt`.
+
+### Previewing in Android Studio
+
+`ui/components/ComponentPreviews.kt` covers every public component, and
+`ui/screens/ScreenPreviews.kt` covers the three screens that hold no network state
+(Type Guide, Settings, Splash), so those render at full fidelity in the preview
+pane. The data-driven screens — Explore, Search, Detail, Compare, Collection —
+only ever show their loading state under layoutlib, because PokéAPI never resolves
+in the preview renderer. Run the app on a device to check those.
 
 ## Differences from the original web prototype
 
