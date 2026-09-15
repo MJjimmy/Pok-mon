@@ -117,7 +117,12 @@ class AppState : ViewModel() {
         caught = emptySet()
     }
 
-    fun setTheme(value: ThemeSetting) {
+    /**
+     * Named `selectTheme` rather than `setTheme`: a `var theme` already generates a
+     * `setTheme(ThemeSetting)` setter, and declaring another one is a JVM signature
+     * clash. Matches [selectTab] for consistency.
+     */
+    fun selectTheme(value: ThemeSetting) {
         theme = value
     }
 

@@ -91,7 +91,7 @@ fun SettingsScreen(
                         options = ThemeSetting.entries.toList(),
                         selected = state.theme,
                         label = { it.label },
-                        onSelect = { state.setTheme(it) },
+                        onSelect = { state.selectTheme(it) },
                     )
                 }
             }
