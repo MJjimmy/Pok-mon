@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,7 +54,13 @@ fun AppTextField(
     onImeAction: () -> Unit = {},
 ) {
     if (autoFocus && focusRequester != null) {
-        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+        LaunchedEffect(Unit) {
+            // A FocusRequester throws if it is used before its modifier node has been
+            // attached, which happens during the first layout pass. Wait for one frame
+            // so the field exists, and ignore the request if the screen is already gone.
+            withFrameNanos { }
+            runCatching { focusRequester.requestFocus() }
+        }
     }
 
     BasicTextField(
