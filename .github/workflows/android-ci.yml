@@ -50,35 +50,78 @@ jobs:
           set -o pipefail
           gradle testDebugUnitTest --no-daemon 2>&1 | tee -a build.log
 
-      # Compiler diagnostics normally live in the job log, which is awkward to
-      # read from tooling. Mirror them into a commit comment, where they are
-      # easy to find and quote.
-      - name: Publish diagnostics
-        if: steps.assemble.outcome == 'failure' || steps.test.outcome == 'failure'
+      # Compiler diagnostics and test counts normally live in the job log, which is
+      # awkward to read from tooling. Mirror a summary into a commit comment.
+      - name: Publish summary
+        if: always()
         uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
-            let log = '';
-            try {
-              log = fs.readFileSync('build.log', 'utf8');
-            } catch (error) {
-              log = '(build.log was not produced)';
-            }
+            const read = (p, fallback = '') => { try { return fs.readFileSync(p, 'utf8'); } catch (e) { return fallback; } };
 
+            const log = read('build.log', '(build.log was not produced)');
             const lines = log.split('\n');
-            const isInteresting = (line) =>
-              /^e: |^w: .*deprecat|error:|FAILURE:|What went wrong|Execution failed|> Could not|Could not (resolve|find|determine|create|compile|get)|Unresolved reference|Type mismatch|No value passed|None of the following/.test(line);
 
-            const picked = lines.filter(isInteresting);
-            const body = (picked.length ? picked.slice(0, 250) : lines.slice(-150)).join('\n');
-            const clipped = body.length > 60000 ? body.slice(0, 60000) + '\n… truncated' : body;
+            // ---- compiler diagnostics
+            const errors = lines.filter(l => /^e: /.test(l));
+            const warnings = lines.filter(l => /^w: /.test(l) && !/deprecat.*Node\.js/.test(l));
+
+            // ---- unit test totals
+            const dir = 'app/build/test-results/testDebugUnitTest';
+            let tests = 0, failures = 0, errors = 0, skipped = 0, suites = 0;
+            try {
+              for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.xml'))) {
+                const xml = read(`${dir}/${f}`);
+                const attr = (name) => {
+                  const m = xml.match(new RegExp(`${name}="(\\d+)"`));
+                  return m ? parseInt(m[1], 10) : 0;
+                };
+                tests += attr('tests'); failures += attr('failures');
+                errors += attr('errors'); skipped += attr('skipped');
+                suites += 1;
+              }
+            } catch (e) { /* no test results */ }
+
+            // ---- APK size
+            let apk = 'not produced';
+            try {
+              const bytes = fs.statSync('app/build/outputs/apk/debug/app-debug.apk').size;
+              apk = `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+            } catch (e) { /* no apk */ }
+
+            const ok = '${{ steps.assemble.outcome }}' === 'success' && '${{ steps.test.outcome }}' === 'success';
+            const icon = ok ? '✅' : '❌';
+            const parts = [];
+            parts.push(`### ${icon} Android CI — ${ok ? 'build and tests passed' : 'failed'}`);
+            parts.push('');
+            parts.push(`| | |`);
+            parts.push(`| --- | --- |`);
+            parts.push(`| Assemble | ${{ steps.assemble.outcome }} |`);
+            parts.push(`| Unit tests | ${{ steps.test.outcome }} |`);
+            parts.push(`| Test suites / cases | ${suites} / ${tests} |`);
+            parts.push(`| Failures / errors / skipped | ${failures} / ${errors} / ${skipped} |`);
+            parts.push(`| Debug APK | ${apk} |`);
+            parts.push(`| Compiler errors / warnings | ${errors.length} / ${warnings.length} |`);
+
+            const clip = (arr, n) => arr.slice(0, n).join('\n').slice(0, 20000);
+
+            if (errors.length) {
+              parts.push('', '<details><summary>Compiler errors</summary>', '', '```', clip(errors, 120), '```', '', '</details>');
+            }
+            if (warnings.length) {
+              parts.push('', '<details><summary>Compiler warnings</summary>', '', '```', clip(warnings, 120), '```', '', '</details>');
+            }
+            if (!ok && !errors.length) {
+              const failLines = lines.filter(l => /FAILURE:|What went wrong|Execution failed|> Could not|Could not resolve|Unresolved reference|Type mismatch/.test(l));
+              parts.push('', '<details><summary>Gradle failure output</summary>', '', '```', clip(failLines.length ? failLines : lines.slice(-120), 120), '```', '', '</details>');
+            }
 
             await github.rest.repos.createCommitComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
-              body: `### Android CI failed\n\n\`\`\`\n${clipped}\n\`\`\`\n`,
+              body: parts.join('\n'),
             });
 
       - name: Fail if the build or tests did not pass
