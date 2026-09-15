@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -17,31 +17,80 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
 
       # The Gradle wrapper JAR is not committed in this repo, so CI installs
-      # Gradle directly rather than calling ./gradlew. The version here must stay
-      # in step with gradle/wrapper/gradle-wrapper.properties.
+      # Gradle directly rather than calling ./gradlew. Keep this version in step
+      # with gradle/wrapper/gradle-wrapper.properties.
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.9'
 
-      - name: Compile and assemble debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+      - name: Assemble debug APK
+        id: assemble
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
 
       - name: Run unit tests
-        run: gradle testDebugUnitTest --no-daemon
+        id: test
+        if: steps.assemble.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle testDebugUnitTest --no-daemon 2>&1 | tee -a build.log
+
+      # Compiler diagnostics normally live in the job log, which is awkward to
+      # read from tooling. Mirror them into a commit comment, where they are
+      # easy to find and quote.
+      - name: Publish diagnostics
+        if: steps.assemble.outcome == 'failure' || steps.test.outcome == 'failure'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            let log = '';
+            try {
+              log = fs.readFileSync('build.log', 'utf8');
+            } catch (error) {
+              log = '(build.log was not produced)';
+            }
+
+            const lines = log.split('\n');
+            const isInteresting = (line) =>
+              /^e: |^w: .*deprecat|error:|FAILURE:|What went wrong|Execution failed|> Could not|Could not (resolve|find|determine|create|compile|get)|Unresolved reference|Type mismatch|No value passed|None of the following/.test(line);
+
+            const picked = lines.filter(isInteresting);
+            const body = (picked.length ? picked.slice(0, 250) : lines.slice(-150)).join('\n');
+            const clipped = body.length > 60000 ? body.slice(0, 60000) + '\n… truncated' : body;
+
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: `### Android CI failed\n\n\`\`\`\n${clipped}\n\`\`\`\n`,
+            });
+
+      - name: Fail if the build or tests did not pass
+        if: steps.assemble.outcome == 'failure' || steps.test.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "Build or tests failed. See the commit comment for diagnostics."
+          exit 1
 
       - name: Upload debug APK
-        if: success()
-        uses: actions/upload-artifact@v4
+        if: steps.assemble.outcome == 'success'
+        uses: actions/upload-artifact@v7
         with:
           name: pokemon-explorer-debug-apk
           path: app/build/outputs/apk/debug/*.apk
